@@ -2203,7 +2203,7 @@ usage() {
 
 	fprintf(stderr, "Usage: %s [-v] [-h] [-c] [-s] [-f] [-D] [-u user] "
 		"[-t chrootdir] [-d device] [-m mtu] [-z context] "
-		"[-l ip address to listen on] [-p port] [-n external ip] "
+		"[-6] [-l ip address to listen on] [-p port] [-n external ip] "
 		"[-b dnsport] [-P password] [-F pidfile] [-i max idle time] "
 		"tunnel_ip[/netmask] topdomain\n", __progname);
 	exit(2);
@@ -2231,6 +2231,7 @@ help() {
 	fprintf(stderr, "  -d device to set tunnel device name\n");
 	fprintf(stderr, "  -m mtu to set tunnel device mtu\n");
 	fprintf(stderr, "  -z context to apply SELinux context after initialization\n");
+	fprintf(stderr, "  -6 use IPv6 to listen for DNS requests.\n");
 	fprintf(stderr, "  -l ip address to listen on for incoming dns traffic "
 		"(default 0.0.0.0)\n");
 	fprintf(stderr, "  -p port to listen on for incoming dns traffic (default 53)\n");
@@ -2257,6 +2258,7 @@ main(int argc, char **argv)
 {
 	extern char *__progname;
 	char *listen_ip;
+	int listen_ipv6;
 	char *errormsg;
 #ifndef WINDOWS32
 	struct passwd *pw;
@@ -2303,6 +2305,7 @@ main(int argc, char **argv)
 	mtu = 1130;	/* Very many relays give fragsize 1150 or slightly
 			   higher for NULL; tun/zlib adds ~17 bytes. */
 	listen_ip = NULL;
+	listen_ipv6 = 0;
 	port = 53;
 	ns_ip = INADDR_ANY;
 	ns_get_externalip = 0;
@@ -2335,7 +2338,7 @@ main(int argc, char **argv)
 	srand(time(NULL));
 	fw_query_init();
 
-	while ((choice = getopt(argc, argv, "vcsfhDu:t:d:m:l:p:n:b:P:z:F:i:")) != -1) {
+	while ((choice = getopt(argc, argv, "vcsfhDu:t:d:m:l:p:n:b:P:z:F:i:6")) != -1) {
 		switch(choice) {
 		case 'v':
 			version();
@@ -2369,6 +2372,9 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			listen_ip = optarg;
+			break;
+		case '6':
+			listen_ipv6 = 1;
 			break;
 		case 'p':
 			port = atoi(optarg);
@@ -2465,7 +2471,10 @@ main(int argc, char **argv)
 		foreground = 1;
 	}
 
-	dnsaddr_len = get_addr(listen_ip, port, AF_INET, AI_PASSIVE | AI_NUMERICHOST, &dnsaddr);
+	if (listen_ipv6)
+		dnsaddr_len = get_addr(listen_ip, port, AF_INET6, AI_PASSIVE | AI_NUMERICHOST, &dnsaddr);
+	else
+		dnsaddr_len = get_addr(listen_ip, port, AF_INET, AI_PASSIVE | AI_NUMERICHOST, &dnsaddr);
 	if (dnsaddr_len < 0) {
 		warnx("Bad IP address to listen on.");
 		usage();
