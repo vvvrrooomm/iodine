@@ -2383,7 +2383,9 @@ main(int argc, char **argv)
 			if (optarg && strcmp("auto", optarg) == 0) {
 				ns_get_externalip = 1;
 			} else {
-				ns_ip = inet_addr(optarg);
+				int count = inet_pton(AF_INET, optarg, &ns_ip);
+				if (count == -1)
+					inet_pton(AF_INET6, optarg, &ns_ip);
 			}
 			break;
 		case 'b':

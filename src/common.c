@@ -392,7 +392,7 @@ check_topdomain(char *str, char **errormsg)
 int
 inet_aton(const char *cp, struct in_addr *inp)
 {
- inp->s_addr = inet_addr(cp);
+	int count = inet_pton(AF_ANY,cp, &inp->s_addr);
  return inp->s_addr != INADDR_ANY;
 }
 #endif
