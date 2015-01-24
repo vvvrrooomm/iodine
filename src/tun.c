@@ -96,7 +96,7 @@ open_tun(const char *tun_device)
 		if_name[sizeof(if_name)-1] = '\0';
 
 		if (ioctl(tun_fd, TUNSETIFF, (void *) &ifreq) != -1) {
-			fprintf(stderr, "Opened %s\n", ifreq.ifr_name);
+			fprintf(stderr, "Opened tun device %s\n", ifreq.ifr_name);
 			fd_set_close_on_exec(tun_fd);
 			return tun_fd;
 		}
@@ -110,7 +110,7 @@ open_tun(const char *tun_device)
 			snprintf(ifreq.ifr_name, IFNAMSIZ, "dns%d", i);
 
 			if (ioctl(tun_fd, TUNSETIFF, (void *) &ifreq) != -1) {
-				fprintf(stderr, "Opened %s\n", ifreq.ifr_name);
+				fprintf(stderr, "Opened tun device %s\n", ifreq.ifr_name);
 				snprintf(if_name, sizeof(if_name), "dns%d", i);
 				fd_set_close_on_exec(tun_fd);
 				return tun_fd;
@@ -332,7 +332,7 @@ open_tun(const char *tun_device)
 			return -1;
 		}
 
-		fprintf(stderr, "Opened %s\n", tun_name);
+		fprintf(stderr, "Opened tun device  %s\n", tun_name);
 		fd_set_close_on_exec(tun_fd);
 		return tun_fd;
 	} else {
@@ -340,7 +340,7 @@ open_tun(const char *tun_device)
 			snprintf(tun_name, sizeof(tun_name), "/dev/tun%d", i);
 
 			if ((tun_fd = open(tun_name, O_RDWR)) >= 0) {
-				fprintf(stderr, "Opened %s\n", tun_name);
+				fprintf(stderr, "Opened tun device %s\n", tun_name);
 				snprintf(if_name, sizeof(if_name), "tun%d", i);
 				fd_set_close_on_exec(tun_fd);
 				return tun_fd;
