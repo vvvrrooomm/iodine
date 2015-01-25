@@ -2543,6 +2543,7 @@ main(int argc, char **argv)
 			fprintf(stderr, "Failed to get external IP via web service.\n");
 			exit(3);
 		}
+		ns_ip.ss_family = AF_INET;
 		((struct sockaddr_in*)&ns_ip)->sin_addr = extip;
 		fprintf(stderr, "Using %s as external IP.\n", inet_ntoa(extip));
 	}
