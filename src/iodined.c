@@ -740,7 +740,7 @@ create_ip_reply(char in[],  struct query* q, char *reply)
 	int result = 0;
 	struct sockaddr_storage *replyaddr;
 	if ((ns_ip.ss_family == AF_INET && ((struct sockaddr_in*)&ns_ip)->sin_addr.s_addr != INADDR_ANY)
-			|| memcmp( &((struct sockaddr_in6*)&ns_ip)->sin6_addr, &in6addr_any, sizeof(in6addr_any)) == 0) {
+			|| memcmp( &((struct sockaddr_in6*)&ns_ip)->sin6_addr, &in6addr_any, sizeof(in6addr_any)) != 0) {
 		/* If set, use assigned external ip (-n option) */
 		replyaddr = &ns_ip;
 	} else {
