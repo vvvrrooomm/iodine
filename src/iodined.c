@@ -1977,7 +1977,7 @@ raw_decode(char *packet, int len, struct query *q, int dns_fd, int tun_fd)
 static int
 read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw_decode() below */
 {
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	socklen_t addrlen;
 	char packet[64*1024];
 	int r;
@@ -1987,7 +1987,7 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 	struct iovec iov;
 	struct cmsghdr *cmsg;
 
-	addrlen = sizeof(struct sockaddr);
+	addrlen = sizeof(struct sockaddr_storage);
 	iov.iov_base = packet;
 	iov.iov_len = sizeof(packet);
 
