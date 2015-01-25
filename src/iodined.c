@@ -86,7 +86,7 @@ static int my_mtu;
 static in_addr_t my_ip;
 static int netmask;
 
-static in_addr_t ns_ip;
+static struct sockaddr_storage ns_ip;
 
 static int bind_port;
 static int debug;
@@ -732,6 +732,43 @@ process_downstream_ack(int userid, int down_seq, int down_frag)
 	}
 }
 
+static int
+create_ip_reply(char in[],  struct query* q, char *reply)
+{
+	int result = 0;
+	struct sockaddr_storage *replyaddr;
+	if (ns_ip.ss_family != AF_UNSPEC) {
+		/* If set, use assigned external ip (-n option) */
+		replyaddr = &ns_ip;
+	} else {
+		/* otherwise return destination ip from packet */
+		replyaddr = &q->destination;
+	}
+
+	unsigned long addr;
+	switch(replyaddr->ss_family) {
+	case AF_INET:
+		addr = htonl(((struct sockaddr_in*)replyaddr)->sin_addr.s_addr);
+		reply[0] = 'I';
+		reply[1] = (addr >> 24) & 0xFF;
+		reply[2] = (addr >> 16) & 0xFF;
+		reply[3] = (addr >>  8) & 0xFF;
+		reply[4] = (addr >>  0) & 0xFF;
+		result = 5;
+		break;
+	case AF_INET6:
+		reply[0] = 'i';
+		for (int i=0; i<16; i++) {
+			reply[1+i] = ((struct sockaddr_in6*)replyaddr)->sin6_addr.s6_addr[i];
+		}
+		result = 17;
+		break;
+	default:
+		warnx("__FILE__:__LINE__ unknown address type\n");
+	}
+	return result;
+}
+
 static void
 handle_null_request(int tun_fd, int dns_fd, struct query *q, int domain_len)
 {
@@ -878,9 +915,7 @@ handle_null_request(int tun_fd, int dns_fd, struct query *q, int domain_len)
 		return;
 	} else if(in[0] == 'I' || in[0] == 'i') {
 		/* Request for IP number */
-		in_addr_t replyaddr;
-		unsigned addr;
-		char reply[5];
+		char reply[17];
 
 		userid = b32_8to5(in[1]);
 		if (check_authenticated_user_and_ip(userid, q) != 0) {
@@ -888,21 +923,9 @@ handle_null_request(int tun_fd, int dns_fd, struct query *q, int domain_len)
 			return; /* illegal id */
 		}
 
-		if (ns_ip != INADDR_ANY) {
-			/* If set, use assigned external ip (-n option) */
-			replyaddr = ns_ip;
-		} else {
-			/* otherwise return destination ip from packet */
-			memcpy(&replyaddr, &q->destination.s_addr, sizeof(in_addr_t));
-		}
-
-		addr = htonl(replyaddr);
-		reply[0] = 'I';
-		reply[1] = (addr >> 24) & 0xFF;
-		reply[2] = (addr >> 16) & 0xFF;
-		reply[3] = (addr >>  8) & 0xFF;
-		reply[4] = (addr >>  0) & 0xFF;
+		int count = create_ip_reply(in, q, reply);
 		write_dns(dns_fd, q, reply, sizeof(reply), 'T');
+
 	} else if(in[0] == 'Z' || in[0] == 'z') {
 		/* Check for case conservation and chars not allowed according to RFC */
 
@@ -1497,10 +1520,10 @@ handle_ns_request(int dns_fd, struct query *q)
 	char buf[64*1024];
 	int len;
 
-	if (ns_ip != INADDR_ANY) {
+	if (ns_ip.ss_family != AF_UNSPEC) {
 		/* If ns_ip set, overwrite destination addr with it.
 		 * Destination addr will be sent as additional record (A, IN) */
-		memcpy(&q->destination.s_addr, &ns_ip, sizeof(in_addr_t));
+		memcpy(&q->destination, &ns_ip, sizeof(struct sockaddr_storage));
 	}
 
 	len = dns_encode_ns_response(buf, sizeof(buf), q, topdomain);
@@ -1527,12 +1550,13 @@ handle_a_request(int dns_fd, struct query *q, int fakeip)
 
 	if (fakeip) {
 		in_addr_t ip = inet_addr("127.0.0.1");
-		memcpy(&q->destination.s_addr, &ip, sizeof(in_addr_t));
+		struct sockaddr_in* destination = (struct sockaddr_in*)&(q->destination);
+		memcpy(&(destination->sin_addr), &ip, sizeof(in_addr_t));
 
-	} else if (ns_ip != INADDR_ANY) {
+	} else if (ns_ip.ss_family != AF_UNSPEC) {
 		/* If ns_ip set, overwrite destination addr with it.
 		 * Destination addr will be sent as additional record (A, IN) */
-		memcpy(&q->destination.s_addr, &ns_ip, sizeof(in_addr_t));
+		memcpy(&q->destination, &ns_ip, sizeof(struct sockaddr_storage));
 	}
 
 	len = dns_encode_a_response(buf, sizeof(buf), q);
@@ -2024,9 +2048,21 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 			if (cmsg->cmsg_level == IPPROTO_IP &&
 				cmsg->cmsg_type == DSTADDR_SOCKOPT) {
 
-				q->destination = *dstaddr(cmsg);
+				struct sockaddr_in *dest = (struct sockaddr_in*) &(q->destination);
+				dest->sin_family = AF_INET;
+				dest->sin_addr = *dstaddr(cmsg);
 				break;
 			}
+
+			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
+				cmsg->cmsg_type == DSTADDR_SOCKOPT) {
+				struct sockaddr_in6* dest =(struct sockaddr_in6 *) &(q->destination);
+				dest->sin6_family = AF_INET6;
+				struct in6_pktinfo* pktinfo = CMSG_DATA(cmsg);
+				dest->sin6_addr = pktinfo->ipi6_addr;
+				break;
+			}
+			
 		}
 #endif
 
@@ -2307,7 +2343,7 @@ main(int argc, char **argv)
 	listen_ip = NULL;
 	listen_ipv6 = 0;
 	port = 53;
-	ns_ip = INADDR_ANY;
+	ns_ip.ss_family = AF_UNSPEC;
 	ns_get_externalip = 0;
 	check_ip = 1;
 	skipipconfig = 0;
@@ -2507,11 +2543,11 @@ main(int argc, char **argv)
 			fprintf(stderr, "Failed to get external IP via web service.\n");
 			exit(3);
 		}
-		ns_ip = extip.s_addr;
+		((struct sockaddr_in*)&ns_ip)->sin_addr = extip;
 		fprintf(stderr, "Using %s as external IP.\n", inet_ntoa(extip));
 	}
 
-	if (ns_ip == INADDR_NONE) {
+	if (ns_ip.ss_family == AF_UNSPEC) {
 		warnx("Bad IP address to return as nameserver.");
 		usage();
 	}

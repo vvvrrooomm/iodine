@@ -95,11 +95,11 @@ struct query {
 	unsigned short type;
 	unsigned short rcode;
 	unsigned short id;
-	struct in_addr destination;
+	struct sockaddr_storage destination;
 	struct sockaddr_storage from;
 	int fromlen;
 	unsigned short id2;
-	struct sockaddr from2;
+	struct sockaddr_storage from2;
 	int fromlen2;
 };
 
