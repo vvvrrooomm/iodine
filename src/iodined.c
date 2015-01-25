@@ -198,6 +198,9 @@ check_user_and_ip(int userid, struct query *q)
 	}
 
 	tempin = (struct sockaddr_in *) &(q->from);
+	fprintf(stderr, "__FUNC__: client %s, type %d, name %s,\n",
+					format_addr(&q->from, q->fromlen), q->type, q->name);
+
 	return memcmp(&(users[userid].host), &(tempin->sin_addr), sizeof(struct in_addr));
 }
 
@@ -581,6 +584,9 @@ send_chunk_or_dataless(int dns_fd, int userid, struct query *q)
 		q->id = q->id2;
 		q->fromlen = q->fromlen2;
 		memcpy(&(q->from), &(q->from2), q->fromlen2);
+		fprintf(stderr, "__FUNC__: client %s, type %d, name %s, %d bytes data\n",
+						format_addr(&q->from, q->fromlen), q->type, q->name, datalen);
+
 		if (debug >= 1)
 			fprintf(stderr, "OUT  again to last duplicate\n");
 		write_dns(dns_fd, q, pkt, datalen + 2, users[userid].downenc);
@@ -1215,6 +1221,9 @@ handle_null_request(int tun_fd, int dns_fd, struct query *q, int domain_len)
 			}
 			users[userid].q.id2 = q->id;
 			users[userid].q.fromlen2 = q->fromlen;
+			fprintf(stderr, "__FUNC__: client %s, type %d, name %s,\n",
+					format_addr(&q->from, q->fromlen), q->type, q->name);
+
 			memcpy(&(users[userid].q.from2), &(q->from), q->fromlen);
 			return;
 		}
@@ -1604,6 +1613,8 @@ forward_query(int bind_fd, struct query *q)
 		fprintf(stderr, "TX: NS reply \n");
 	}
 
+	fprintf(stderr, "__FUNC__: client %s, type %d, name %s,\n",
+					format_addr(&q->from, q->fromlen), q->type, q->name);
 	if (sendto(bind_fd, buf, len, 0, (struct sockaddr*)&q->from, q->fromlen) <= 0) {
 		warn("forward query error");
 	}
@@ -1619,6 +1630,8 @@ tunnel_bind(int bind_fd, int dns_fd)
 	unsigned short id;
 	int r;
 
+	fprintf(stderr, "__FUNC__: client %s,\n",
+					format_addr(&from, fromlen));
 	fromlen = sizeof(struct sockaddr);
 	r = recvfrom(bind_fd, packet, sizeof(packet), 0,
 		(struct sockaddr*)&from, &fromlen);
