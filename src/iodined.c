@@ -2015,6 +2015,7 @@ static int
 read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw_decode() below */
 {
 	struct sockaddr_storage from;
+	memset(&from, 0, sizeof(struct sockaddr_storage));
 	socklen_t addrlen;
 	char packet[64*1024];
 	int r;
