@@ -2026,11 +2026,11 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 	r = recvmsg(fd, &msg, 0);
 #else
 	addrlen = sizeof(struct sockaddr);
-	r = recvfrom(fd, packet, sizeof(packet), 0, (struct sockaddr*)&from, &addrlen);
+	r = recvfrom(fd, packet, sizeof(packet), 0, (struct sockaddr_storage*)&from, &addrlen);
 #endif /* !WINDOWS32 */
 
 	if (r > 0) {
-		memcpy((struct sockaddr*)&q->from, (struct sockaddr*)&from, addrlen);
+		memcpy((struct sockaddr_storage*)&q->from, (struct sockaddr_storage*)&from, addrlen);
 		q->fromlen = addrlen;
 
 		/* TODO do not handle raw packets here! */
