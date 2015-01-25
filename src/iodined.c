@@ -767,7 +767,7 @@ create_ip_reply(char in[],  struct query* q, char *reply)
 		result = 17;
 		break;
 	default:
-		warnx("__FILE__:__LINE__ unknown address type\n");
+		warnx("create_ip_reply: unknown address type\n");
 	}
 	return result;
 }
@@ -1662,6 +1662,7 @@ static int
 tunnel_dns(int tun_fd, int dns_fd, int bind_fd)
 {
 	struct query q;
+	memset(&q, 0, sizeof(struct query));
 	int read;
 	int domain_len;
 	int inside_topdomain = 0;
