@@ -2343,7 +2343,13 @@ main(int argc, char **argv)
 	listen_ip = NULL;
 	listen_ipv6 = 0;
 	port = 53;
-	ns_ip.ss_family = AF_UNSPEC;
+	if (listen_ipv6) {
+		ns_ip.ss_family = AF_INET6;
+		((struct sockaddr_in6*)&ns_ip)->sin6_addr = in6addr_any;
+	} else {
+		ns_ip.ss_family = AF_INET;
+		((struct sockaddr_in*)&ns_ip)->sin_addr.s_addr = INADDR_ANY;
+	}
 	ns_get_externalip = 0;
 	check_ip = 1;
 	skipipconfig = 0;
