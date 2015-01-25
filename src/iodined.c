@@ -2039,7 +2039,7 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 
 	r = recvmsg(fd, &msg, 0);
 #else
-	addrlen = sizeof(struct sockaddr);
+	addrlen = sizeof(struct sockaddr_storage);
 	r = recvfrom(fd, packet, sizeof(packet), 0, (struct sockaddr_storage*)&from, &addrlen);
 #endif /* !WINDOWS32 */
 
@@ -2054,7 +2054,7 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 		if (dns_decode(NULL, 0, q, QR_QUERY, packet, r) < 0) {
 			return 0;
 		}
-
+ 
 #ifndef WINDOWS32
 		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 			cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -2357,13 +2357,9 @@ main(int argc, char **argv)
 	listen_ip = NULL;
 	listen_ipv6 = 0;
 	port = 53;
-	if (listen_ipv6) {
-		ns_ip.ss_family = AF_INET6;
-		((struct sockaddr_in6*)&ns_ip)->sin6_addr = in6addr_any;
-	} else {
-		ns_ip.ss_family = AF_INET;
-		((struct sockaddr_in*)&ns_ip)->sin_addr.s_addr = INADDR_ANY;
-	}
+	ns_ip.ss_family = AF_INET;
+	((struct sockaddr_in*)&ns_ip)->sin_addr.s_addr = INADDR_ANY;
+	
 	ns_get_externalip = 0;
 	check_ip = 1;
 	skipipconfig = 0;
@@ -2538,6 +2534,11 @@ main(int argc, char **argv)
 		usage();
 	}
 
+	if (listen_ipv6) {
+		ns_ip.ss_family = AF_INET6;
+		((struct sockaddr_in6*)&ns_ip)->sin6_addr = in6addr_any;
+	}
+	
 	if(bind_enable) {
 		in_addr_t dns_ip = ((struct sockaddr_in *) &dnsaddr)->sin_addr.s_addr;
 		if (bind_port < 1 || bind_port > 65535) {
