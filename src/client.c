@@ -64,7 +64,7 @@ static const char *password;
 
 static struct sockaddr_storage nameserv;
 static int nameserv_len;
-static struct sockaddr_in raw_serv;
+static struct sockaddr_storage raw_serv;
 static const char *topdomain;
 
 static uint16_t rand_seed;
@@ -242,7 +242,17 @@ client_set_hostname_maxlen(int i)
 const char *
 client_get_raw_addr()
 {
-	return inet_ntoa(raw_serv.sin_addr);
+	static char addr_string[INET6_ADDRSTRLEN];
+
+	switch (raw_serv.ss_family) {
+	case AF_INET:
+		return inet_ntop(raw_serv.ss_family, &((struct sockaddr_in*)&raw_serv)->sin_addr, addr_string, INET6_ADDRSTRLEN);
+	case AF_INET6:
+		return inet_ntop(raw_serv.ss_family, &((struct sockaddr_in6*)&raw_serv)->sin6_addr, addr_string, INET6_ADDRSTRLEN);
+	default:
+		warnx("__FILE__:__LINE__: unknown address family!\n");
+		return NULL;
+	}
 }
 
 static void
@@ -1489,7 +1499,7 @@ handshake_raw_udp(int dns_fd, int seed)
 	int r;
 	int len;
 	unsigned remoteaddr = 0;
-	struct in_addr server;
+	struct sockaddr_storage server;
 
 	fprintf(stderr, "Testing raw UDP data to the server (skip with -r)");
 	for (i=0; running && i<3 ;i++) {
@@ -1507,10 +1517,20 @@ handshake_raw_udp(int dns_fd, int seed)
 			remoteaddr |= (in[3] & 0xff);
 			remoteaddr <<= 8;
 			remoteaddr |= (in[4] & 0xff);
-			server.s_addr = ntohl(remoteaddr);
+			struct sockaddr_in* ptr = (struct sockaddr_in*) &server;
+			ptr->sin_addr.s_addr = ntohl(remoteaddr);
 			break;
 		}
-
+		if (len == 17 && in[0] == 'i') {
+			/* Received IPv6 address */
+			struct sockaddr_in6* ptr = (struct sockaddr_in6*) &server;
+			for (int i=0; i<16; i++){
+				ptr->sin6_addr.s6_addr[i] = in[1+i];
+			}
+			fprintf(stderr, "raw udp handshake client %s\n",
+							format_addr(&server, 128));
+			break;
+		}
 		fprintf(stderr, ".");
 		fflush(stderr);
 	}
@@ -1522,15 +1542,14 @@ handshake_raw_udp(int dns_fd, int seed)
 		fprintf(stderr, "Failed to get raw server IP, will use DNS mode.\n");
 		return 0;
 	}
-	fprintf(stderr, "Server is at %s, trying raw login: ", inet_ntoa(server));
+	fprintf(stderr, "Server is at %s, trying raw login: ",  format_addr(&server, sizeof(server)));
 	fflush(stderr);
 
 	/* Store address to iodined server */
 	memset(&raw_serv, 0, sizeof(raw_serv));
-	raw_serv.sin_family = AF_INET;
-	raw_serv.sin_port = htons(53);
-	raw_serv.sin_addr = server;
-
+	memcpy(&raw_serv, &server, sizeof(struct sockaddr_storage));
+	((struct sockaddr_in*)&raw_serv)->sin_port = htons(53);
+	
 	/* do login against port 53 on remote server
 	 * based on the old seed. If reply received,
 	 * switch to raw udp mode */
