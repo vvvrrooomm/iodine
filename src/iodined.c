@@ -2044,7 +2044,7 @@ read_dns(int fd, int tun_fd, struct query *q) /* FIXME: tun_fd is because of raw
 #endif /* !WINDOWS32 */
 
 	if (r > 0) {
-		memcpy((struct sockaddr_storage*)&q->from, (struct sockaddr_storage*)&from, addrlen);
+		memcpy(&q->from, &from, addrlen);
 		q->fromlen = addrlen;
 
 		/* TODO do not handle raw packets here! */
